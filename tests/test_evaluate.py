@@ -44,6 +44,14 @@ class EvaluateTest(unittest.TestCase):
         self.assertEqual(summary["answer"], (1, 1))
         self.assertEqual(summary["overall"], (2, 2))
 
+    def test_retrieval_only_run_does_not_count_unmeasured_questions_as_passed(self):
+        from docsagent.evaluate import score_retrieval
+
+        results = [score_retrieval(CASE, [(CARRY, 0.8)]),
+                   score_retrieval({"question": "Gym?", "answerable": False}, [(SICK, 0.3)])]
+        self.assertIsNone(results[1].passed)
+        self.assertEqual(summarize(results)["overall"], (1, 1))
+
     def test_eval_set_is_well_formed(self):
         cases = load_cases()
         self.assertGreaterEqual(len(cases), 15)

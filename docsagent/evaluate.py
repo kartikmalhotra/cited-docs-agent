@@ -48,9 +48,11 @@ class CaseResult:
     answer: str = ""
 
     @property
-    def passed(self) -> bool:
+    def passed(self) -> bool | None:
+        """None when nothing was measured (e.g. an unanswerable question in a retrieval-only run)."""
         checks = [self.retrieved, self.answered, self.cited] if self.answerable else [self.refused]
-        return all(c for c in checks if c is not None)
+        measured = [c for c in checks if c is not None]
+        return all(measured) if measured else None
 
 
 def _is_expected(chunk, case: dict) -> bool:

@@ -66,6 +66,10 @@ python -m docsagent eval                    # full agent, uses Claude
 
 CI scores retrieval on every push and shows the report on the run page.
 
+**Measured so far:** retrieval found the right section for **15 of 15** answerable questions
+(BGE-small embeddings + Qdrant, measured in CI). Full-agent scores (answer, citation, refusal)
+come from `python -m docsagent eval` with an API key.
+
 ## Run it
 
 ```bash
