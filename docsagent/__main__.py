@@ -15,10 +15,15 @@ def main(argv: list[str] | None = None) -> None:
     search.add_argument("-k", type=int, default=4, help="How many pieces to show (default 4)")
     ask = sub.add_parser("ask", help="Answer a question with a source for every sentence (needs ANTHROPIC_API_KEY)")
     ask.add_argument("question")
+    evaluate = sub.add_parser("eval", help="Score the agent on evals/questions.jsonl")
+    evaluate.add_argument("--retrieval-only", action="store_true", help="Score search only (free, no API key)")
+    evaluate.add_argument("--save", metavar="FILE", help="Also write the report to a Markdown file")
     args = parser.parse_args(argv)
 
     if args.command == "ask":
         return _ask(args.question)
+    if args.command == "eval":
+        return _eval(args.retrieval_only, args.save)
 
     from .chunking import load_folder
     from .vectorstore import FastEmbedder, VectorStore
@@ -52,6 +57,23 @@ def _ask(question: str) -> None:
         for sentence, reason in checked.dropped:
             print(f"  - {sentence}  ({reason})")
     print("\nSteps: " + " → ".join(state["steps"]))
+
+
+def _eval(retrieval_only: bool, save: str | None) -> None:
+    from .evaluate import load_cases, report, run
+    from .vectorstore import FastEmbedder, VectorStore
+
+    store = VectorStore(FastEmbedder())
+    agent = None
+    if not retrieval_only:
+        from .agent import ClaudeLLM, build_agent
+        agent = build_agent(store, ClaudeLLM())
+    text = report(run(load_cases(), store, agent))
+    print(text)
+    if save:
+        with open(save, "w", encoding="utf-8") as f:
+            f.write(text + "\n")
+        print(f"\nSaved to {save}")
 
 
 if __name__ == "__main__":

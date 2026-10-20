@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Test (fake LLM and fake embeddings, no API key needed)
+        run: python -m pytest -q
+
+  retrieval-eval:
+    # Scores search quality on the eval set with the real embedding model. Free: no LLM calls.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: Load the sample documents
+        run: python -m docsagent ingest sample_docs
+      - name: Score retrieval
+        run: python -m docsagent eval --retrieval-only --save retrieval-report.md
+      - name: Show the report on the run page
+        run: cat retrieval-report.md >> "$GITHUB_STEP_SUMMARY"

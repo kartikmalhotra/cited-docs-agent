@@ -1,0 +1,18 @@
+{"question": "How many days of annual leave do full-time employees get?", "answerable": true, "source": "leave-policy.md", "section": "Annual leave", "must_include": ["24"]}
+{"question": "How many unused leave days can I carry over, and until when?", "answerable": true, "source": "leave-policy.md", "section": "Carry-over", "must_include": ["5", "31 march"]}
+{"question": "Can I keep my unused holidays for next year?", "answerable": true, "source": "leave-policy.md", "section": "Carry-over", "must_include": ["5"]}
+{"question": "When do I need a doctor's note for sick leave?", "answerable": true, "source": "leave-policy.md", "section": "Sick leave", "must_include": ["3"]}
+{"question": "How long is parental leave for the secondary caregiver?", "answerable": true, "source": "leave-policy.md", "section": "Parental leave", "must_include": ["4 weeks"]}
+{"question": "What is the hotel limit per night in India?", "answerable": true, "source": "expense-policy.md", "section": "Travel", "must_include": ["7000"]}
+{"question": "Which class can I fly for a 4-hour flight?", "answerable": true, "source": "expense-policy.md", "section": "Travel", "must_include": ["economy"]}
+{"question": "What is the daily meal allowance when travelling abroad?", "answerable": true, "source": "expense-policy.md", "section": "Meals", "must_include": ["75"]}
+{"question": "Is alcohol reimbursed?", "answerable": true, "source": "expense-policy.md", "section": "Meals", "must_include": ["never|not"]}
+{"question": "How long do I have to submit an expense claim?", "answerable": true, "source": "expense-policy.md", "section": "Claims and receipts", "must_include": ["30"]}
+{"question": "What is the home office allowance for new employees?", "answerable": true, "source": "expense-policy.md", "section": "Home office", "must_include": ["15000"]}
+{"question": "How fast must the on-call engineer acknowledge a SEV1 page?", "answerable": true, "source": "incident-response.md", "section": "Paging and response times", "must_include": ["5 minutes"]}
+{"question": "How often is the status page updated during a SEV1?", "answerable": true, "source": "incident-response.md", "section": "Status updates", "must_include": ["30"]}
+{"question": "When is the postmortem due after a SEV2?", "answerable": true, "source": "incident-response.md", "section": "After the incident", "must_include": ["5 working days"]}
+{"question": "Who coordinates the response during an incident?", "answerable": true, "source": "incident-response.md", "section": "Roles", "must_include": ["incident commander"]}
+{"question": "What is the stock option vesting schedule?", "answerable": false}
+{"question": "Does Northwind Labs pay for a gym membership?", "answerable": false}
+{"question": "What is the CEO's name?", "answerable": false}
