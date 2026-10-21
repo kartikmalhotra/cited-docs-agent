@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cited-docs-agent
+  labels:
+    app: cited-docs-agent
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: cited-docs-agent
+  template:
+    metadata:
+      labels:
+        app: cited-docs-agent
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: cited-docs-agent:local       # replace with your registry image
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: cited-docs-agent
+            - secretRef:
+                name: cited-docs-agent-keys   # ANTHROPIC_API_KEY, OPENAI_API_KEY, GEMINI_API_KEY
+                optional: true                # /search and /health work without keys
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

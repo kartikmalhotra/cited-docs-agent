@@ -42,3 +42,32 @@ jobs:
       - name: Show both reports on the run page
         run: |
           { echo "## With reranker"; cat with-rerank.md; echo; echo "## Without reranker"; cat without-rerank.md; } >> "$GITHUB_STEP_SUMMARY"
+
+  kubernetes:
+    # Builds the Docker image, deploys it to a throwaway Kubernetes cluster (kind) and checks
+    # that search works through the Service. No API key needed: /search makes no model call.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Build the image
+        run: docker build -t cited-docs-agent:local .
+      - name: Start a Kubernetes cluster
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: docsagent
+      - name: Deploy
+        run: |
+          kind load docker-image cited-docs-agent:local --name docsagent
+          kubectl apply -f deploy/k8s/
+          kubectl rollout status deployment/cited-docs-agent --timeout=300s
+          kubectl get pods -o wide
+      - name: Smoke test through the Service
+        run: |
+          kubectl port-forward service/cited-docs-agent 8080:80 >/dev/null 2>&1 &
+          for i in $(seq 1 30); do curl -fsS localhost:8080/health && break; sleep 2; done
+          curl -fsS --max-time 120 "localhost:8080/search?q=How+many+leave+days+can+I+carry+over" > search.json
+          python3 -c "import json; top = json.load(open('search.json'))['results'][0]; print(top['label'], top['score']); assert 'Carry-over' in top['label']"
+          { echo "## Kubernetes smoke test"; echo; kubectl get pods; echo; echo "Top search result: $(python3 -c "import json; print(json.load(open('search.json'))['results'][0]['label'])")"; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Pod logs (only if something failed)
+        if: failure()
+        run: kubectl logs -l app=cited-docs-agent --tail=200 --all-containers

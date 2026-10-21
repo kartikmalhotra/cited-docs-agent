@@ -1,0 +1,8 @@
+# Settings that are not secret. API keys go in a Secret (see the README).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cited-docs-agent
+data:
+  DOCSAGENT_PROVIDER: "anthropic"     # anthropic | openai | gemini
+  DOCSAGENT_FALLBACK: ""              # e.g. "openai": used if the first provider fails (needs its key too)
