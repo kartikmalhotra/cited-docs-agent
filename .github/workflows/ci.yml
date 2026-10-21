@@ -35,7 +35,10 @@ jobs:
         run: pip install -r requirements.txt
       - name: Load the sample documents
         run: python -m docsagent ingest sample_docs
-      - name: Score retrieval
-        run: python -m docsagent eval --retrieval-only --save retrieval-report.md
-      - name: Show the report on the run page
-        run: cat retrieval-report.md >> "$GITHUB_STEP_SUMMARY"
+      - name: Score retrieval with and without the reranker
+        run: |
+          python -m docsagent eval --retrieval-only --save with-rerank.md
+          python -m docsagent eval --retrieval-only --no-rerank --save without-rerank.md
+      - name: Show both reports on the run page
+        run: |
+          { echo "## With reranker"; cat with-rerank.md; echo; echo "## Without reranker"; cat without-rerank.md; } >> "$GITHUB_STEP_SUMMARY"

@@ -25,6 +25,13 @@ class EvaluateTest(unittest.TestCase):
         result = score_answer(CASE, state("Up to 5 days, used by 31 March [1].", [(CARRY, 0.8), (SICK, 0.4)]))
         self.assertTrue(result.retrieved and result.answered and result.cited and result.passed)
 
+    def test_top1_records_whether_the_right_section_came_first(self):
+        first = score_answer(CASE, state("Up to 5 days, used by 31 March [1].", [(CARRY, 0.8), (SICK, 0.4)]))
+        second = score_answer(CASE, state("Up to 5 days, used by 31 March [2].", [(SICK, 0.8), (CARRY, 0.7)]))
+        self.assertTrue(first.top1)
+        self.assertFalse(second.top1)
+        self.assertTrue(second.retrieved)
+
     def test_citing_the_wrong_section_fails_the_citation_check(self):
         result = score_answer(CASE, state("Unused days carry over to next year [1].", [(SICK, 0.8), (CARRY, 0.7)]))
         self.assertTrue(result.retrieved)   # the right section was found...

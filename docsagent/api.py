@@ -29,9 +29,10 @@ def _get_agent():
     global _agent
     if _agent is None:
         from .agent import ClaudeLLM, build_agent
+        from .rerank import CrossEncoderReranker
         from .vectorstore import FastEmbedder, VectorStore
 
-        _agent = build_agent(VectorStore(FastEmbedder()), ClaudeLLM())
+        _agent = build_agent(VectorStore(FastEmbedder()), ClaudeLLM(), reranker=CrossEncoderReranker())
     return _agent
 
 
@@ -50,5 +51,6 @@ def ask_question(body: Question) -> dict:
         "sources": [{"n": n, "label": hits[n - 1][0].label(), "score": round(hits[n - 1][1], 3)}
                     for n in checked.cited],
         "removed": [{"sentence": s, "reason": r} for s, r in checked.dropped],
+        "blocked_sources": [{"label": c.label(), "matched": phrase} for c, phrase in state.get("blocked", [])],
         "steps": state["steps"],
     }

@@ -42,6 +42,7 @@ class CaseResult:
     question: str
     answerable: bool
     retrieved: bool | None = None   # None when not measured
+    top1: bool | None = None        # the right section was ranked first
     answered: bool | None = None
     cited: bool | None = None
     refused: bool | None = None
@@ -63,6 +64,7 @@ def score_retrieval(case: dict, hits) -> CaseResult:
     result = CaseResult(case["question"], case["answerable"])
     if case["answerable"]:
         result.retrieved = any(_is_expected(chunk, case) for chunk, _ in hits)
+        result.top1 = bool(hits) and _is_expected(hits[0][0], case)
     return result
 
 
@@ -85,6 +87,7 @@ def summarize(results: list[CaseResult]) -> dict[str, tuple[int, int]]:
 
     return {
         "retrieval": rate(r.retrieved for r in results),
+        "top-1": rate(r.top1 for r in results),
         "answer": rate(r.answered for r in results),
         "citation": rate(r.cited for r in results),
         "refusal": rate(r.refused for r in results),
@@ -94,9 +97,10 @@ def summarize(results: list[CaseResult]) -> dict[str, tuple[int, int]]:
 
 def report(results: list[CaseResult]) -> str:
     mark = {True: "✅", False: "❌", None: "–"}
-    lines = ["| # | Question | Retrieval | Answer | Citation | Refusal |", "|---|---|---|---|---|---|"]
+    lines = ["| # | Question | Retrieval | Top-1 | Answer | Citation | Refusal |",
+             "|---|---|---|---|---|---|---|"]
     for i, r in enumerate(results, start=1):
-        lines.append(f"| {i} | {r.question} | {mark[r.retrieved]} | {mark[r.answered]} | "
+        lines.append(f"| {i} | {r.question} | {mark[r.retrieved]} | {mark[r.top1]} | {mark[r.answered]} | "
                      f"{mark[r.cited]} | {mark[r.refused]} |")
     lines += ["", "| Metric | Score |", "|---|---|"]
     for name, (good, total) in summarize(results).items():
@@ -105,14 +109,16 @@ def report(results: list[CaseResult]) -> str:
     return "\n".join(lines)
 
 
-def run(cases: list[dict], store, agent=None) -> list[CaseResult]:
-    """With an agent: full evaluation. Without one: retrieval only."""
-    from .agent import ask
+def run(cases: list[dict], store, agent=None, reranker=None) -> list[CaseResult]:
+    """With an agent: full evaluation. Without one: retrieval only (same search, screening
+    and reranking the agent uses)."""
+    from .agent import ask, find_sources
 
     results = []
     for case in cases:
         if agent is None:
-            results.append(score_retrieval(case, store.search(case["question"], 4)))
+            hits, _ = find_sources(store, case["question"], reranker=reranker)
+            results.append(score_retrieval(case, hits))
         else:
             results.append(score_answer(case, ask(agent, case["question"])))
     return results

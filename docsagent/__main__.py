@@ -18,12 +18,13 @@ def main(argv: list[str] | None = None) -> None:
     evaluate = sub.add_parser("eval", help="Score the agent on evals/questions.jsonl")
     evaluate.add_argument("--retrieval-only", action="store_true", help="Score search only (free, no API key)")
     evaluate.add_argument("--save", metavar="FILE", help="Also write the report to a Markdown file")
+    evaluate.add_argument("--no-rerank", action="store_true", help="Skip the reranker, to compare scores")
     args = parser.parse_args(argv)
 
     if args.command == "ask":
         return _ask(args.question)
     if args.command == "eval":
-        return _eval(args.retrieval_only, args.save)
+        return _eval(args.retrieval_only, args.save, rerank=not args.no_rerank)
 
     from .chunking import load_folder
     from .vectorstore import FastEmbedder, VectorStore
@@ -42,9 +43,11 @@ def main(argv: list[str] | None = None) -> None:
 
 def _ask(question: str) -> None:
     from .agent import ClaudeLLM, ask, build_agent
+    from .rerank import CrossEncoderReranker
     from .vectorstore import FastEmbedder, VectorStore
 
-    state = ask(build_agent(VectorStore(FastEmbedder()), ClaudeLLM()), question)
+    agent = build_agent(VectorStore(FastEmbedder()), ClaudeLLM(), reranker=CrossEncoderReranker())
+    state = ask(agent, question)
     checked, hits = state["checked"], state["hits"]
     print(f"Answer: {checked.text}\n")
     if checked.cited:
@@ -56,19 +59,26 @@ def _ask(question: str) -> None:
         print(f"\nRemoved {len(checked.dropped)} sentence(s) without support:")
         for sentence, reason in checked.dropped:
             print(f"  - {sentence}  ({reason})")
+    if state.get("blocked"):
+        print(f"\nIgnored {len(state['blocked'])} source(s) that looked like a prompt injection:")
+        for chunk, phrase in state["blocked"]:
+            print(f'  - {chunk.label()}  (matched "{phrase}")')
     print("\nSteps: " + " → ".join(state["steps"]))
 
 
-def _eval(retrieval_only: bool, save: str | None) -> None:
+def _eval(retrieval_only: bool, save: str | None, rerank: bool = True) -> None:
     from .evaluate import load_cases, report, run
+    from .rerank import CrossEncoderReranker
     from .vectorstore import FastEmbedder, VectorStore
 
     store = VectorStore(FastEmbedder())
+    reranker = CrossEncoderReranker() if rerank else None
     agent = None
     if not retrieval_only:
         from .agent import ClaudeLLM, build_agent
-        agent = build_agent(store, ClaudeLLM())
-    text = report(run(load_cases(), store, agent))
+        agent = build_agent(store, ClaudeLLM(), reranker=reranker)
+    text = report(run(load_cases(), store, agent, reranker=reranker))
+    text = f"Reranker: {'on' if reranker else 'off'}\n\n" + text
     print(text)
     if save:
         with open(save, "w", encoding="utf-8") as f:
