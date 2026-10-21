@@ -59,6 +59,25 @@ class EvaluateTest(unittest.TestCase):
         self.assertIsNone(results[1].passed)
         self.assertEqual(summarize(results)["overall"], (1, 1))
 
+    def test_percentiles_and_latency_line(self):
+        from docsagent.evaluate import CaseResult, percentile, report
+
+        self.assertEqual(percentile([5, 1, 3, 2, 4], 50), 3)
+        self.assertEqual(percentile(list(range(1, 101)), 95), 95)
+        results = [CaseResult("q", True, retrieved=True, seconds=s) for s in (0.010, 0.020, 0.030)]
+        self.assertIn("| latency p50 / p95 | 20 ms / 30 ms |", report(results))
+
+    def test_retrieval_only_run_times_every_question(self):
+        from docsagent.evaluate import run
+
+        class Store:
+            def search(self, query, k):
+                return [(CARRY, 0.8)]
+
+        results = run([CASE, CASE], Store())
+        self.assertTrue(all(r.seconds is not None and r.seconds >= 0 for r in results))
+        self.assertTrue(all(r.retrieved for r in results))
+
     def test_eval_set_is_well_formed(self):
         cases = load_cases()
         self.assertGreaterEqual(len(cases), 15)

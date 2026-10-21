@@ -14,6 +14,8 @@ Run:  python -m docsagent eval                   (full agent, needs ANTHROPIC_AP
 from __future__ import annotations
 
 import json
+import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -47,6 +49,7 @@ class CaseResult:
     cited: bool | None = None
     refused: bool | None = None
     answer: str = ""
+    seconds: float | None = None     # time to answer this question (or to retrieve, in retrieval-only runs)
 
     @property
     def passed(self) -> bool | None:
@@ -95,6 +98,18 @@ def summarize(results: list[CaseResult]) -> dict[str, tuple[int, int]]:
     }
 
 
+def percentile(values: list[float], p: float) -> float:
+    """Nearest-rank percentile: p50 is the median, p95 the value 95% of runs stay under."""
+    ordered = sorted(values)
+    return ordered[max(0, math.ceil(p / 100 * len(ordered)) - 1)]
+
+
+def latency(results: list[CaseResult]) -> tuple[float, float] | None:
+    """(p50, p95) in milliseconds, or None if nothing was timed."""
+    times = [r.seconds * 1000 for r in results if r.seconds is not None]
+    return (percentile(times, 50), percentile(times, 95)) if times else None
+
+
 def report(results: list[CaseResult]) -> str:
     mark = {True: "✅", False: "❌", None: "–"}
     lines = ["| # | Question | Retrieval | Top-1 | Answer | Citation | Refusal |",
@@ -106,6 +121,9 @@ def report(results: list[CaseResult]) -> str:
     for name, (good, total) in summarize(results).items():
         if total:
             lines.append(f"| {name} | {good}/{total} ({good / total:.0%}) |")
+    timing = latency(results)
+    if timing:
+        lines.append(f"| latency p50 / p95 | {timing[0]:.0f} ms / {timing[1]:.0f} ms |")
     return "\n".join(lines)
 
 
@@ -114,11 +132,17 @@ def run(cases: list[dict], store, agent=None, reranker=None) -> list[CaseResult]
     and reranking the agent uses)."""
     from .agent import ask, find_sources
 
+    if agent is None and cases:
+        find_sources(store, cases[0]["question"], reranker=reranker)  # warm-up, not timed
+
     results = []
     for case in cases:
+        start = time.perf_counter()
         if agent is None:
             hits, _ = find_sources(store, case["question"], reranker=reranker)
-            results.append(score_retrieval(case, hits))
+            result = score_retrieval(case, hits)
         else:
-            results.append(score_answer(case, ask(agent, case["question"])))
+            result = score_answer(case, ask(agent, case["question"]))
+        result.seconds = time.perf_counter() - start
+        results.append(result)
     return results
