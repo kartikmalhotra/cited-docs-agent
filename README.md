@@ -75,9 +75,16 @@ CI scores retrieval on every push, with and without the reranker, and shows both
 the run page. Besides "right section in the top 4", it reports **top-1**: was the right
 section ranked first?
 
-**Measured so far:** retrieval found the right section for **15 of 15** answerable questions
-(BGE-small embeddings + Qdrant, measured in CI). Full-agent scores (answer, citation, refusal)
-come from `python -m docsagent eval` with an API key.
+**Measured in CI** (GitHub-hosted CPU runner, 15 answerable questions):
+
+| | Right section in top 4 | Right section first | Retrieval latency p50 / p95 |
+|---|---|---|---|
+| With reranker | 15/15 | 15/15 | 50 ms / 58 ms |
+| Without reranker | 15/15 | 15/15 | 6 ms / 8 ms |
+
+On this small, clean set the reranker adds about 45 ms without changing accuracy, so its value
+isn't shown yet; a harder set with near-duplicate sections is the next step. Full-agent scores
+(answer, citation, refusal) come from `python -m docsagent eval` with an API key.
 
 ## Run it
 
