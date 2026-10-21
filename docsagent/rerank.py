@@ -29,7 +29,7 @@ class CrossEncoderReranker:
     def __init__(self, model_name: str = DEFAULT_RERANK_MODEL):
         from fastembed.rerank.cross_encoder import TextCrossEncoder
 
-        self.model = TextCrossEncoder(model_name=model_name)
+        self.model = TextCrossEncoder(model_name=model_name, cache_dir=os.environ.get("DOCSAGENT_MODEL_CACHE"))
 
     def scores(self, question: str, texts: list[str]) -> list[float]:
         return [float(s) for s in self.model.rerank(question, texts)]

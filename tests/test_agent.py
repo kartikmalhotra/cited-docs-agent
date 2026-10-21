@@ -108,6 +108,30 @@ class AgentTest(unittest.TestCase):
         ask(build_agent(store, FakeLLM()), "Something unrelated")
         self.assertEqual(len(store.queries), 2)
 
+    def test_usage_adds_up_every_model_call(self):
+        from docsagent.agent import ask, build_agent
+        from docsagent.llm import Reply
+
+        def llm(system, user):
+            if "Rewrite" in system:
+                return Reply("annual leave carry over", {"input_tokens": 40, "output_tokens": 5})
+            return Reply("You can carry over up to 5 days [1].", {"input_tokens": 300, "output_tokens": 12})
+
+        store = FakeStore(lambda q: 0.9 if q == "annual leave carry over" else 0.2)
+        state = ask(build_agent(store, llm), "Can I keep my unused days?")
+        usage = state["usage"]
+        self.assertEqual((usage["calls"], usage["input_tokens"], usage["output_tokens"]), (2, 340, 17))
+        self.assertTrue(state["checked"].found)
+
+    def test_on_step_reports_each_step_as_it_finishes(self):
+        from docsagent.agent import ask, build_agent
+
+        seen = []
+        state = ask(build_agent(FakeStore(lambda q: 0.9), FakeLLM()), "How many days can I carry over?",
+                    on_step=seen.append)
+        self.assertEqual(seen, state["steps"])
+        self.assertEqual([s.split(" ")[0] for s in seen], ["retrieve", "generate", "check"])
+
 
 if __name__ == "__main__":
     unittest.main()

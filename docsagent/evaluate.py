@@ -8,7 +8,7 @@ documents). For each one we check four things:
   citation    does the answer cite the right section?
   refusal     for questions the documents can't answer, did it say so instead of guessing?
 
-Run:  python -m docsagent eval                   (full agent, needs ANTHROPIC_API_KEY)
+Run:  python -m docsagent eval                   (full agent, needs the model provider's API key)
       python -m docsagent eval --retrieval-only  (search only, free)
 """
 from __future__ import annotations
@@ -50,6 +50,9 @@ class CaseResult:
     refused: bool | None = None
     answer: str = ""
     seconds: float | None = None     # time to answer this question (or to retrieve, in retrieval-only runs)
+    tokens_in: int | None = None     # model tokens used for this question (full-agent runs only)
+    tokens_out: int | None = None
+    cost_usd: float | None = None    # only when prices are set (see llm.estimate_cost)
 
     @property
     def passed(self) -> bool | None:
@@ -124,6 +127,14 @@ def report(results: list[CaseResult]) -> str:
     timing = latency(results)
     if timing:
         lines.append(f"| latency p50 / p95 | {timing[0]:.0f} ms / {timing[1]:.0f} ms |")
+    used = [r for r in results if r.tokens_in is not None]
+    if used:
+        avg_in = sum(r.tokens_in for r in used) / len(used)
+        avg_out = sum(r.tokens_out or 0 for r in used) / len(used)
+        lines.append(f"| tokens per question (in / out) | {avg_in:.0f} / {avg_out:.0f} |")
+        costs = [r.cost_usd for r in used if r.cost_usd is not None]
+        if len(costs) == len(used):
+            lines.append(f"| cost per question | ${sum(costs) / len(costs):.5f} |")
     return "\n".join(lines)
 
 
@@ -142,7 +153,11 @@ def run(cases: list[dict], store, agent=None, reranker=None) -> list[CaseResult]
             hits, _ = find_sources(store, case["question"], reranker=reranker)
             result = score_retrieval(case, hits)
         else:
-            result = score_answer(case, ask(agent, case["question"]))
+            state = ask(agent, case["question"])
+            result = score_answer(case, state)
+            usage = state.get("usage") or {}
+            result.tokens_in, result.tokens_out = usage.get("input_tokens"), usage.get("output_tokens")
+            result.cost_usd = usage.get("cost_usd")
         result.seconds = time.perf_counter() - start
         results.append(result)
     return results

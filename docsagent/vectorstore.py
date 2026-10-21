@@ -13,6 +13,7 @@ from .chunking import Chunk
 
 COLLECTION = "docs"
 DEFAULT_EMBED_MODEL = os.environ.get("DOCSAGENT_EMBED_MODEL", "BAAI/bge-small-en-v1.5")
+MODEL_CACHE = os.environ.get("DOCSAGENT_MODEL_CACHE")   # where models are stored; None = fastembed's default
 
 
 class Embedder(Protocol):
@@ -31,7 +32,7 @@ class FastEmbedder:
     def __init__(self, model_name: str = DEFAULT_EMBED_MODEL):
         from fastembed import TextEmbedding
 
-        self.model = TextEmbedding(model_name)
+        self.model = TextEmbedding(model_name, cache_dir=MODEL_CACHE)
         self.dim = len(self.embed_query("probe"))
 
     def embed_passages(self, texts: list[str]) -> list[list[float]]:
@@ -51,7 +52,10 @@ class VectorStore:
         self._models = models
         self.embedder = embedder
         # Local mode: Qdrant keeps its data in a folder on disk, so no server is needed.
-        # Pass client=QdrantClient(":memory:") in tests.
+        # Set QDRANT_URL (and QDRANT_API_KEY) to use a Qdrant server instead, e.g. when
+        # several copies of the API run on Kubernetes. Tests pass client=QdrantClient(":memory:").
+        if client is None and os.environ.get("QDRANT_URL"):
+            client = QdrantClient(url=os.environ["QDRANT_URL"], api_key=os.environ.get("QDRANT_API_KEY"))
         self.client = client or QdrantClient(path=path)
         if not self.client.collection_exists(COLLECTION):
             self.client.create_collection(

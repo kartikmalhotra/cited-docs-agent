@@ -78,6 +78,20 @@ class EvaluateTest(unittest.TestCase):
         self.assertTrue(all(r.seconds is not None and r.seconds >= 0 for r in results))
         self.assertTrue(all(r.retrieved for r in results))
 
+    def test_full_run_records_tokens_and_reports_them(self):
+        from docsagent.evaluate import report, run
+
+        class Agent:
+            def invoke(self, state):
+                return {"hits": [(CARRY, 0.8)], "steps": ["retrieve", "generate", "check"],
+                        "checked": check_citations("Up to 5 days, used by 31 March [1].", [CARRY]),
+                        "llm_calls": [{"input_tokens": 300, "output_tokens": 20}]}
+
+        results = run([CASE], store=None, agent=Agent())
+        self.assertEqual((results[0].tokens_in, results[0].tokens_out), (300, 20))
+        self.assertTrue(results[0].passed)
+        self.assertIn("| tokens per question (in / out) | 300 / 20 |", report(results))
+
     def test_eval_set_is_well_formed(self):
         cases = load_cases()
         self.assertGreaterEqual(len(cases), 15)
